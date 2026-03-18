@@ -4,3 +4,4 @@ ultralytics
 opencv-python
 requests
 numpy
+sentinelhub

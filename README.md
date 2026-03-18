@@ -24,8 +24,15 @@ pip install -r requirements.txt
 Optional environment variables (`backend/.env.example`):
 
 - `OPENWEATHER_API_KEY` (if absent, wind uses real Open-Meteo fallback)
+- `SENTINELHUB_CLIENT_ID`
+- `SENTINELHUB_CLIENT_SECRET`
+- `SENTINELHUB_INSTANCE_ID` (optional)
+- `SATELLITE_IMAGE_WIDTH`
+- `SATELLITE_IMAGE_HEIGHT`
 - `REQUEST_TIMEOUT_SECONDS`
 - `WIND_DRAG_FACTOR`
+- `EXTERNAL_API_MAX_RETRIES`
+- `EXTERNAL_API_BACKOFF_SECONDS`
 
 ### Run
 
@@ -42,9 +49,12 @@ Request JSON:
 
 ```json
 {
-	"latitude": 15.0,
-	"longitude": 90.0,
-	"image_base64": "data:image/jpeg;base64,..."
+	"bbox": {
+		"min_lat": 13.9,
+		"max_lat": 16.4,
+		"min_lon": 88.7,
+		"max_lon": 92.1
+	}
 }
 ```
 
@@ -52,10 +62,14 @@ Response JSON:
 
 ```json
 {
-	"current_location": {"latitude": 15.0, "longitude": 90.0},
+	"status": "ok",
+	"message": null,
+	"bbox": {"min_lat": 13.9, "max_lat": 16.4, "min_lon": 88.7, "max_lon": 92.1},
+	"current_location": {"latitude": 15.15, "longitude": 90.4},
 	"predicted_location": {"latitude": 15.001, "longitude": 89.999, "eta_minutes": 120},
-	"wind": {"speed_mps": 2.3, "direction_deg": 95.0, "source": "openweather"},
-	"current": {"u_component_mps": -0.03, "v_component_mps": 0.02, "source": "noaa-erddap:erdQMekm1day"},
+	"satellite": {"source": "sentinelhub:SENTINEL2_L2A", "time_window": "NOW-1DAYS/NOW", "stale": false},
+	"wind": {"speed_mps": 2.3, "direction_deg": 95.0, "source": "openweather", "stale": false},
+	"current": {"u_component_mps": -0.03, "v_component_mps": 0.02, "source": "noaa-erddap:erdQMekm1day", "stale": false},
 	"detections": []
 }
 ```
@@ -84,8 +98,10 @@ The dashboard sends:
 
 and visualizes:
 
+- Requested bbox rectangle
 - Current location marker
 - Predicted location marker
+- Detection markers from geo-mapped YOLO outputs
 - Predicted trajectory polyline
 - Heatmap (plastic density proxy)
 - Left/right/bottom panel metrics
