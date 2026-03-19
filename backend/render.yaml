@@ -2,17 +2,8 @@ services:
   - type: web
     name: ocean-plastic-monitoring-api
     autoDeploy: true
-    buildCommand: pip install -r /root/backend/requirements.txt
-    startCommand: |
-      cd /root/backend && \
-      gunicorn \
-        --workers 4 \
-        --worker-class uvicorn.workers.UvicornWorker \
-        --bind 0.0.0.0:${PORT} \
-        --timeout 60 \
-        --access-logfile - \
-        --error-logfile - \
-        app:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} --timeout 60 --access-logfile - --error-logfile - app:app
     envVars:
       - key: SENTINELHUB_CLIENT_ID
         value: ${SENTINELHUB_CLIENT_ID}

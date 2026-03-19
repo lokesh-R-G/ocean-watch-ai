@@ -85,17 +85,23 @@ git push -u origin main
 3. Configure:
    - **Name:** `ocean-plastic-api` (or similar)
    - **Environment:** `Python 3.11`
-   - **Build Command:** `pip install -r backend/requirements.txt`
+   - **Root Directory:** `backend/` ⚠️ **CRITICAL - Must set this**
+   - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** See below
    - **Plan:** Free tier (2 concurrent requests) or Starter ($7/month, 3 vCPU, 512MB RAM)
 
 ### 2.3 Start Command
 
-Use this exact command:
+**In Render Dashboard, set the Start Command field to:**
 
-```bash
-cd backend && gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} --timeout 60 --access-logfile - app:app
 ```
+gunicorn --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} --timeout 60 --access-logfile - app:app
+```
+
+**IMPORTANT:** 
+- Copy and paste the command EXACTLY as shown above
+- Do NOT add `bash` or any shell prefix
+- This runs from the backend directory automatically
 
 ### 2.4 Environment Variables
 
@@ -277,6 +283,11 @@ python -m http.server 5500 --directory frontend-static
 ## 🚨 Troubleshooting
 
 ### Backend Won't Start
+
+**Error: "ModuleNotFoundError: No module named 'app'"**
+- Solution: In Render Dashboard, set **Root Directory** to `backend/` (Step 2.2)
+- This tells Render where the app.py file is located
+- Rebuild service after changing this setting
 
 **Error: "SENTINELHUB credentials are not configured"**
 - Solution: Add SENTINELHUB_CLIENT_ID and CLIENT_SECRET to Render environment
