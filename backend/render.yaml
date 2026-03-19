@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: ocean-plastic-monitoring-api
+    autoDeploy: true
+    buildCommand: pip install -r /root/backend/requirements.txt
+    startCommand: |
+      cd /root/backend && \
+      gunicorn \
+        --workers 4 \
+        --worker-class uvicorn.workers.UvicornWorker \
+        --bind 0.0.0.0:${PORT} \
+        --timeout 60 \
+        --access-logfile - \
+        --error-logfile - \
+        app:app
+    envVars:
+      - key: SENTINELHUB_CLIENT_ID
+        value: ${SENTINELHUB_CLIENT_ID}
+      - key: SENTINELHUB_CLIENT_SECRET
+        value: ${SENTINELHUB_CLIENT_SECRET}
+      - key: SENTINELHUB_INSTANCE_ID
+        value: ${SENTINELHUB_INSTANCE_ID}
+      - key: OPENWEATHER_API_KEY
+        value: ${OPENWEATHER_API_KEY}
+      - key: SATELLITE_IMAGE_WIDTH
+        value: 384
+      - key: SATELLITE_IMAGE_HEIGHT
+        value: 384
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: 15
+      - key: REQUEST_TIMEOUT_ANALYZE_SECONDS
+        value: 60
+      - key: EXTERNAL_API_MAX_RETRIES
+        value: 3
+      - key: EXTERNAL_API_BACKOFF_SECONDS
+        value: 1.5
+      - key: ENABLE_RESPONSE_CACHING
+        value: true
+      - key: RESPONSE_CACHE_TTL_SECONDS
+        value: 1800
+      - key: WIND_DRAG_FACTOR
+        value: 0.03
+    healthCheckPath: /health
+    routes:
+      - type: http
+        path: /

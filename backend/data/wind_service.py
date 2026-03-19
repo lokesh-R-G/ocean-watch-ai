@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import requests
 
 from utils.config import (
@@ -18,6 +20,13 @@ class WindServiceError(RuntimeError):
 
 
 _last_available: dict | None = None
+_response_cache: dict = {"result": None, "cached_at": 0, "bbox_key": None}
+CACHE_TTL_SECONDS = 1800  # 30 minutes
+
+
+def _get_cache_key(lat: float, lon: float) -> str:
+    """Generate a cache key for a coordinate (rounded to 2 decimals for grouping nearby requests)."""
+    return f"{lat:.2f},{lon:.2f}"
 
 
 def _fetch_openweather(lat: float, lon: float) -> dict:
@@ -75,7 +84,19 @@ def _fetch_open_meteo(lat: float, lon: float) -> dict:
 
 
 def fetch_wind(lat: float, lon: float) -> dict:
-    global _last_available
+    global _last_available, _response_cache
+
+    # Check cache
+    cache_key = _get_cache_key(lat, lon)
+    now = time.time()
+    
+    if (_response_cache["result"] is not None and 
+        _response_cache["bbox_key"] == cache_key and 
+        (now - _response_cache["cached_at"]) < CACHE_TTL_SECONDS):
+        # Return cached result
+        cached = dict(_response_cache["result"])
+        cached["cache_hit"] = True
+        return cached
 
     errors: list[str] = []
 
@@ -83,6 +104,9 @@ def fetch_wind(lat: float, lon: float) -> dict:
         result = _fetch_openweather(lat, lon)
         result["stale"] = False
         _last_available = result
+        _response_cache["result"] = result
+        _response_cache["cached_at"] = now
+        _response_cache["bbox_key"] = cache_key
         return result
     except Exception as exc:
         errors.append(str(exc))
@@ -91,6 +115,9 @@ def fetch_wind(lat: float, lon: float) -> dict:
         result = _fetch_open_meteo(lat, lon)
         result["stale"] = False
         _last_available = result
+        _response_cache["result"] = result
+        _response_cache["cached_at"] = now
+        _response_cache["bbox_key"] = cache_key
         return result
     except Exception as exc:
         errors.append(str(exc))

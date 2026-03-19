@@ -30,6 +30,16 @@ def _get_model() -> YOLO:
     return _model
 
 
+def preload_yolo_model() -> None:
+    """Preload YOLO model at application startup to avoid cold-start delay."""
+    _ = _get_model()
+    # Run a dummy inference to warm up the model
+    import numpy as np
+    dummy_image = np.zeros((256, 256, 3), dtype=np.uint8)
+    model = _get_model()
+    _ = model.predict(source=dummy_image, conf=0.2, verbose=False)
+
+
 def _decode_image(image_base64: str) -> np.ndarray:
     payload = image_base64.split(",", 1)[-1]
     image_bytes = base64.b64decode(payload)

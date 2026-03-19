@@ -1,0 +1,29 @@
+{
+  "buildCommand": "true",
+  "installCommand": "true",
+  "outputDirectory": ".",
+  "framework": "static",
+  "env": {
+    "NEXT_PUBLIC_BACKEND_URL": {
+      "description": "Backend API URL",
+      "default": "http://localhost:8000"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=3600"
+        }
+      ]
+    }
+  ]
+}

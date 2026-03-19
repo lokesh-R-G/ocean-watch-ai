@@ -21,11 +21,18 @@ class OceanCurrentServiceError(RuntimeError):
 
 _time_cache: dict[str, float | str | None] = {"value": None, "fetched_at": 0.0}
 CACHE_TTL_SECONDS = 3600
+_response_cache: dict = {"result": None, "cached_at": 0, "bbox_key": None}
+RESPONSE_CACHE_TTL_SECONDS = 1800  # 30 minutes
 _last_available: dict | None = None
 
 
 def _to_360_longitude(lon: float) -> float:
     return lon % 360
+
+
+def _get_cache_key(lat: float, lon: float) -> str:
+    """Generate a cache key for a coordinate (rounded to 2 decimals for grouping nearby requests)."""
+    return f"{lat:.2f},{lon:.2f}"
 
 
 def _get_latest_dataset_time() -> str:
@@ -63,10 +70,23 @@ def _vector_to_direction_deg(u: float, v: float) -> float:
 
 
 def fetch_ocean_current(lat: float, lon: float) -> dict:
-    global _last_available
+    global _last_available, _response_cache
 
     clamped_lat = max(-75.0, min(75.0, lat))
     lon_360 = _to_360_longitude(lon)
+    
+    # Check cache
+    cache_key = _get_cache_key(clamped_lat, lon_360)
+    now = time.time()
+    
+    if (_response_cache["result"] is not None and 
+        _response_cache["bbox_key"] == cache_key and 
+        (now - _response_cache["cached_at"]) < RESPONSE_CACHE_TTL_SECONDS):
+        # Return cached result
+        cached = dict(_response_cache["result"])
+        cached["cache_hit"] = True
+        return cached
+
     try:
         dataset_time = _get_latest_dataset_time()
 
@@ -104,6 +124,9 @@ def fetch_ocean_current(lat: float, lon: float) -> dict:
             "stale": False,
         }
         _last_available = result
+        _response_cache["result"] = result
+        _response_cache["cached_at"] = now
+        _response_cache["bbox_key"] = cache_key
         return result
     except Exception as exc:
         if _last_available is not None:

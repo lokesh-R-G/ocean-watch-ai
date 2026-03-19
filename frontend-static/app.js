@@ -1,6 +1,10 @@
+// Configuration
+const API_BASE_URL = window.BACKEND_URL || 'http://localhost:8000';
 const BAY_OF_BENGAL = [15.0, 90.0];
 const map = L.map('map').setView(BAY_OF_BENGAL, 5);
 const MAX_BBOX_AREA_DEG2 = 25;
+
+console.log(`🌐 Using API endpoint: ${API_BASE_URL}`);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18,
@@ -14,8 +18,21 @@ let heatLayer = L.heatLayer([[...BAY_OF_BENGAL, 0.3]], { radius: 35, blur: 20, m
 let requestedBboxRect = null;
 const detectionLayer = L.layerGroup().addTo(map);
 
-function setStatus(text) {
-  document.getElementById('status').textContent = text;
+function setStatus(text, isError = false) {
+  const statusEl = document.getElementById('status');
+  statusEl.textContent = text;
+  statusEl.style.color = isError ? '#ff6b6b' : '#4ec3b0';
+}
+
+function showLoadingIndicator(show = true) {
+  const btn = document.getElementById('analyzeBtn');
+  if (show) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Analyzing...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = 'Analyze';
+  }
 }
 
 function getBboxFromMap() {
@@ -128,6 +145,7 @@ function updateUI(payload) {
 async function analyze() {
   const bbox = getBboxFromMap();
   if (!bbox) {
+    setStatus('❌ Invalid region size', true);
     return;
   }
 
@@ -135,15 +153,23 @@ async function analyze() {
     bbox,
   };
 
-  setStatus('Analyzing...');
+  setStatus('⏳ Analyzing...', false);
+  showLoadingIndicator(true);
+  
   try {
-    const response = await fetch('http://localhost:8000/analyze', {
+    const startTime = performance.now();
+    const response = await fetch(`${API_BASE_URL}/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Request-ID': `req-${Date.now()}`,
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(65000), // 65 second timeout
     });
+
+    const endTime = performance.now();
+    const responseTime = ((endTime - startTime) / 1000).toFixed(2);
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -152,10 +178,52 @@ async function analyze() {
 
     const result = await response.json();
     updateUI(result);
+    
+    let statusMsg = `✅ Analysis complete (${responseTime}s)`;
+    if (result.status === 'degraded') {
+      statusMsg += ' [DEGRADED]';
+    }
+    setStatus(statusMsg, result.status === 'degraded');
+    
   } catch (error) {
-    console.error(error);
-    setStatus(`Error: ${error.message}`);
+    console.error('❌ Analysis failed:', error);
+    const errorMsg = error.name === 'AbortError' 
+      ? 'Request timeout (>60s)' 
+      : error.message;
+    setStatus(`❌ Error: ${errorMsg}`, true);
+    
+    // Show error toast
+    showErrorToast(errorMsg);
+  } finally {
+    showLoadingIndicator(false);
   }
+}
+
+function showErrorToast(message) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #ff6b6b;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    z-index: 10000;
+    max-width: 300px;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+  toast.textContent = `⚠️ ${message}`;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0.5';
+  }, 3000);
+  
+  setTimeout(() => {
+    toast.remove();
+  }, 5000);
 }
 
 document.getElementById('analyzeBtn').addEventListener('click', analyze);
